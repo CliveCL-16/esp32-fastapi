@@ -21,12 +21,24 @@ async def upload_image(request: Request):
     with open(file_path, "wb") as f:
         f.write(data)
 
-    return {"message": "Uploaded", "path": file_path}
+    return {"message": "Uploaded", "path": filename}  # return just filename
 
 @app.get("/latest")
-def get_latest_image():
+async def get_latest_image(request: Request):
     files = glob.glob(os.path.join(UPLOAD_DIR, "*.jpg"))
     if not files:
         return {"message": "No images yet"}
+
     latest_file = max(files, key=os.path.getctime)
-    return FileResponse(latest_file, media_type="image/jpeg")
+    filename = os.path.basename(latest_file)
+
+    # Build absolute URL dynamically (works locally and when deployed)
+    base_url = str(request.base_url).rstrip("/")
+    return {"image_url": f"{base_url}/image/{filename}"}
+
+@app.get("/image/{filename}")
+async def serve_image(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type="image/jpeg")
+    return {"error": "File not found"}
